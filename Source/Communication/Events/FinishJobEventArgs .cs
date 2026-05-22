@@ -59,6 +59,8 @@ namespace FastBuild.Dashboard.Communication.Events
 					return BuildJobStatus.SuccessPreprocessed;
 				case "TIMEOUT":
 					return BuildJobStatus.Timeout;
+				case "ABORTED":
+					return BuildJobStatus.Aborted;
 				default:
 					throw new ArgumentException("unknown build job result", nameof(result));
 			}

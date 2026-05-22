@@ -16,19 +16,60 @@
                 <ColumnDefinition Width="auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBlock Margin="0,0,8,0"
-                       VerticalAlignment="Center"
-                       Text="{Binding StatusText}" />
+            <StackPanel Orientation="Horizontal"
+                        Margin="0,0,8,0"
+                        VerticalAlignment="Center">
+                <TextBlock Text="{Binding StatusText}" />
+                <TextBlock Text="{Binding BuildProgressText}"
+                           Margin="8,0,0,0"
+                           Opacity="0.72" />
+            </StackPanel>
 
             <StackPanel Orientation="Horizontal"
                         Grid.Column="1"
                         HorizontalAlignment="Right">
                 <Border CornerRadius="2"
                         BorderThickness="1"
+                        BorderBrush="{DynamicResource MaterialDesignDivider}"
+                        Background="{DynamicResource MaterialDesignBackground}"
+                        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+                        Padding="8,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="10"
+                                   VerticalAlignment="Center"
+                                   Text="Total" />
+                        <TextBlock VerticalAlignment="Center"
+                                   Style="{DynamicResource MaterialDesignBody2TextBlock}"
+                                   Margin="6,0,0,0"
+                                   Text="{Binding TotalJobCount}" />
+                    </StackPanel>
+                </Border>
+
+                <Border CornerRadius="2"
+                        BorderThickness="1"
+                        BorderBrush="{DynamicResource MaterialDesignDivider}"
+                        Background="{DynamicResource MaterialDesignBackground}"
+                        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+                        Padding="8,2"
+                        Margin="8,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="10"
+                                   VerticalAlignment="Center"
+                                   Text="Remaining" />
+                        <TextBlock VerticalAlignment="Center"
+                                   Style="{DynamicResource MaterialDesignBody2TextBlock}"
+                                   Margin="6,0,0,0"
+                                   Text="{Binding RemainingJobCount}" />
+                    </StackPanel>
+                </Border>
+
+                <Border CornerRadius="2"
+                        BorderThickness="1"
                         BorderBrush="{StaticResource JobBorderBrush_Building}"
                         Background="{StaticResource JobBackgroundBrush_Building}"
                         TextElement.Foreground="{StaticResource JobForegroundBrush_Building}"
-                        Padding="8,2">
+                        Padding="8,2"
+                        Margin="8,0,0,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock FontSize="10"
                                    VerticalAlignment="Center"
@@ -46,42 +87,53 @@
                         Background="{StaticResource JobBackgroundBrush_Success}"
                         TextElement.Foreground="{StaticResource JobForegroundBrush_Success}"
                         Margin="8,0,0,0"
-                        Padding="8,2,2,2">
+                        Padding="8,2">
                     <StackPanel Orientation="Horizontal">
-
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock FontSize="10"
-                                       VerticalAlignment="Center"
-                                       Text="Successful" />
-                            <TextBlock VerticalAlignment="Center"
-                                       Style="{DynamicResource MaterialDesignBody2TextBlock}"
-                                       Margin="6,0,0,0"
-                                       Text="{Binding SuccessfulJobCount}" />
-                        </StackPanel>
-
-
-                        <Border CornerRadius="2"
-                                BorderThickness="1"
-                                BorderBrush="{StaticResource JobBorderBrush_SuccessCached}"
-                                Background="{StaticResource JobBackgroundBrush_SuccessCached}"
-                                TextElement.Foreground="{StaticResource JobForegroundBrush_SuccessCached}"
-                                Padding="6,0"
-                                Margin="8,0,0,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock FontSize="10"
-                                           VerticalAlignment="Center"
-                                           Text="Cache Hit" />
-                                <TextBlock VerticalAlignment="Center"
-                                           Style="{DynamicResource MaterialDesignBody2TextBlock}"
-                                           Margin="6,0,0,0"
-                                           Text="{Binding CacheHitCount}" />
-                            </StackPanel>
-
-                        </Border>
+                        <TextBlock FontSize="10"
+                                   VerticalAlignment="Center"
+                                   Text="Successful" />
+                        <TextBlock VerticalAlignment="Center"
+                                   Style="{DynamicResource MaterialDesignBody2TextBlock}"
+                                   Margin="6,0,0,0"
+                                   Text="{Binding SuccessfulJobCount}" />
                     </StackPanel>
                 </Border>
 
+                <Border CornerRadius="2"
+                        BorderThickness="1"
+                        BorderBrush="{StaticResource JobBorderBrush_SuccessPreprocessed}"
+                        Background="{StaticResource JobBackgroundBrush_SuccessPreprocessed}"
+                        TextElement.Foreground="{StaticResource JobForegroundBrush_SuccessPreprocessed}"
+                        Padding="8,2"
+                        Margin="8,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="10"
+                                   VerticalAlignment="Center"
+                                   Text="Preproc" />
+                        <TextBlock VerticalAlignment="Center"
+                                   Style="{DynamicResource MaterialDesignBody2TextBlock}"
+                                   Margin="6,0,0,0"
+                                   Text="{Binding PreprocessedJobCount}" />
+                    </StackPanel>
+                </Border>
 
+                <Border CornerRadius="2"
+                        BorderThickness="1"
+                        BorderBrush="{StaticResource JobBorderBrush_SuccessCached}"
+                        Background="{StaticResource JobBackgroundBrush_SuccessCached}"
+                        TextElement.Foreground="{StaticResource JobForegroundBrush_SuccessCached}"
+                        Padding="8,2"
+                        Margin="8,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="10"
+                                   VerticalAlignment="Center"
+                                   Text="Cache Hit" />
+                        <TextBlock VerticalAlignment="Center"
+                                   Style="{DynamicResource MaterialDesignBody2TextBlock}"
+                                   Margin="6,0,0,0"
+                                   Text="{Binding CacheHitCount}" />
+                    </StackPanel>
+                </Border>
 
                 <Border CornerRadius="2"
                         BorderThickness="1"
@@ -98,6 +150,24 @@
                                    Style="{DynamicResource MaterialDesignBody2TextBlock}"
                                    Margin="6,0,0,0"
                                    Text="{Binding FailedJobCount}" />
+                    </StackPanel>
+                </Border>
+
+                <Border CornerRadius="2"
+                        BorderThickness="1"
+                        BorderBrush="{StaticResource JobBorderBrush_Timeout}"
+                        Background="{StaticResource JobBackgroundBrush_Timeout}"
+                        TextElement.Foreground="{StaticResource JobForegroundBrush_Timeout}"
+                        Padding="8,2"
+                        Margin="8,0,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock FontSize="10"
+                                   VerticalAlignment="Center"
+                                   Text="Warnings" />
+                        <TextBlock VerticalAlignment="Center"
+                                   Style="{DynamicResource MaterialDesignBody2TextBlock}"
+                                   Margin="6,0,0,0"
+                                   Text="{Binding WarningJobCount}" />
                     </StackPanel>
                 </Border>
 

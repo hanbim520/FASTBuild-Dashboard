@@ -9,6 +9,7 @@
     <SolidColorBrush x:Key="JobBackgroundBrush_Error">Crimson</SolidColorBrush>
     <SolidColorBrush x:Key="JobBackgroundBrush_RacedOut">DarkGray</SolidColorBrush>
     <SolidColorBrush x:Key="JobBackgroundBrush_Timeout">DarkOrange</SolidColorBrush>
+    <SolidColorBrush x:Key="JobBackgroundBrush_Aborted">DarkOrange</SolidColorBrush>
     <SolidColorBrush x:Key="JobBackgroundBrush_Stopped">DarkOrange</SolidColorBrush>
 
     <SolidColorBrush x:Key="JobBorderBrush_Building">DarkGreen</SolidColorBrush>
@@ -19,6 +20,7 @@
     <SolidColorBrush x:Key="JobBorderBrush_Error">Crimson</SolidColorBrush>
     <SolidColorBrush x:Key="JobBorderBrush_RacedOut">DarkGray</SolidColorBrush>
     <SolidColorBrush x:Key="JobBorderBrush_Timeout">DarkOrange</SolidColorBrush>
+    <SolidColorBrush x:Key="JobBorderBrush_Aborted">DarkOrange</SolidColorBrush>
     <SolidColorBrush x:Key="JobBorderBrush_Stopped">DarkOrange</SolidColorBrush>
 
     <Pen x:Key="JobBorderPen_Building" Brush="{StaticResource JobBorderBrush_Building}" Thickness="1" />
@@ -29,6 +31,7 @@
     <Pen x:Key="JobBorderPen_Error" Brush="{StaticResource JobBorderBrush_Error}" Thickness="1" />
     <Pen x:Key="JobBorderPen_RacedOut" Brush="{StaticResource JobBorderBrush_RacedOut}" Thickness="1" />
     <Pen x:Key="JobBorderPen_Timeout" Brush="{StaticResource JobBorderBrush_Timeout}" Thickness="1" />
+    <Pen x:Key="JobBorderPen_Aborted" Brush="{StaticResource JobBorderBrush_Aborted}" Thickness="1" />
     <Pen x:Key="JobBorderPen_Stopped" Brush="{StaticResource JobBorderBrush_Stopped}" Thickness="1" />
 
     <SolidColorBrush x:Key="JobForegroundBrush_Building">Black</SolidColorBrush>
@@ -39,6 +42,7 @@
     <SolidColorBrush x:Key="JobForegroundBrush_Error">White</SolidColorBrush>
     <SolidColorBrush x:Key="JobForegroundBrush_RacedOut">White</SolidColorBrush>
     <SolidColorBrush x:Key="JobForegroundBrush_Timeout">White</SolidColorBrush>
+    <SolidColorBrush x:Key="JobForegroundBrush_Aborted">White</SolidColorBrush>
     <SolidColorBrush x:Key="JobForegroundBrush_Stopped">White</SolidColorBrush>
 
     <FontFamily x:Key="MonoFont">Consolas</FontFamily>

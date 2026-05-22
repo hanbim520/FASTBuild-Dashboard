@@ -148,6 +148,10 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			// give components a last chance to tick
 			// we don't do UpdateTimeFromEvent here because Tick will do the same thing
 			this.Tick(time);
+			if (this.Progress >= 99.9)
+			{
+				this.CompleteJobProgress();
+			}
 			this.IsRunning = false;
 
 			var currentTimeOffset = this.ElapsedTime.TotalSeconds;
@@ -171,11 +175,23 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			this.UpdateTimeFromEvent(e);
 
 			this.Progress = e.Progress;
+			this.ApplyProgressJobCounts(e.TotalJobCount, e.RemainingJobCount);
+			this.UpdateProgressBasedJobTotal();
+			if (this.Progress >= 99.9)
+			{
+				this.CompleteJobProgress();
+			}
 		}
 
 		public void ReportCounter(ReportCounterEventArgs e)
 		{
 			this.UpdateTimeFromEvent(e);
+
+			if (string.Equals(e.GroupName, "FASTBuild", StringComparison.OrdinalIgnoreCase)
+				&& string.Equals(e.CounterName, "Cache Hits", StringComparison.OrdinalIgnoreCase))
+			{
+				this.CacheHitCount = Math.Max(this.CacheHitCount, (int)Math.Round(e.Value));
+			}
 		}
 
 		private BuildWorkerViewModel EnsureWorker(string hostName)
@@ -193,6 +209,22 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			}
 
 			return worker;
+		}
+
+		private static bool IsFinalBuildResult(BuildJobStatus result)
+		{
+			switch (result)
+			{
+				case BuildJobStatus.Success:
+				case BuildJobStatus.SuccessCached:
+				case BuildJobStatus.Failed:
+				case BuildJobStatus.Error:
+				case BuildJobStatus.Timeout:
+				case BuildJobStatus.Aborted:
+					return true;
+				default:
+					return false;
+			}
 		}
 
 		public void OnJobFinished(FinishJobEventArgs e)
@@ -221,13 +253,31 @@ namespace FastBuild.Dashboard.ViewModels.Build
 					++this.SuccessfulJobCount;
 					++this.CacheHitCount;
 					break;
+				case BuildJobStatus.SuccessPreprocessed:
+					++this.PreprocessedJobCount;
+					break;
 				case BuildJobStatus.Failed:
 				case BuildJobStatus.Error:
+				case BuildJobStatus.Timeout:
+				case BuildJobStatus.Aborted:
 					++this.FailedJobCount;
 					break;
 			}
 
-			--this.InProgressJobCount;
+			if (BuildLogEntryViewModel.ContainsCompilerWarning(e.Message))
+			{
+				++this.WarningJobCount;
+			}
+
+			if (IsFinalBuildResult(e.Result))
+			{
+				this.TrackFinishedJob();
+			}
+
+			if (this.InProgressJobCount > 0)
+			{
+				--this.InProgressJobCount;
+			}
 
 			this.UpdateActiveWorkerAndCoreCount();
 		}

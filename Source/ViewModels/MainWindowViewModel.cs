@@ -10,6 +10,7 @@ namespace FastBuild.Dashboard.ViewModels
 	{
 		private IMainPage _currentPage;
 		public BuildWatcherViewModel BuildWatcherPage { get; } = new BuildWatcherViewModel();
+		public BuildStatusViewModel BuildStatusPage { get; }
 		public WorkerViewModel WorkerPage { get; } = new WorkerViewModel();
 		public SettingsViewModel SettingsPage { get; } = new SettingsViewModel();
 		public AboutViewModel AboutPage { get; } = new AboutViewModel();
@@ -31,7 +32,10 @@ namespace FastBuild.Dashboard.ViewModels
 
 		public MainWindowViewModel()
 		{
+			this.BuildStatusPage = new BuildStatusViewModel(this.BuildWatcherPage);
+
 			this.Items.Add(this.BuildWatcherPage);
+			this.Items.Add(this.BuildStatusPage);
 			this.Items.Add(this.WorkerPage);
 			this.Items.Add(this.SettingsPage);
 			this.Items.Add(this.AboutPage);

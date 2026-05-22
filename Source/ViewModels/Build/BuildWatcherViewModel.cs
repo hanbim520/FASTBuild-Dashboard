@@ -9,6 +9,8 @@ namespace FastBuild.Dashboard.ViewModels.Build
 {
 	internal sealed class BuildWatcherViewModel : Conductor<BuildSessionViewModel>.Collection.OneActive, IMainPage
 	{
+		private const int MaxBuildLogEntryCount = 20000;
+
 		private BuildSessionViewModel _currentSession;
 		private readonly BuildWatcher _watcher;
 		private TaskbarItemProgressState _taskbarProgressState;
@@ -62,6 +64,9 @@ namespace FastBuild.Dashboard.ViewModels.Build
 		}
 
 		public string Icon => "HeartPulse";
+
+		public BindableCollection<BuildLogEntryViewModel> BuildLogEntries { get; }
+			= new BindableCollection<BuildLogEntryViewModel>();
 
 		public BuildWatcherViewModel()
 		{
@@ -135,6 +140,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 		private void Watcher_SessionStarted(object sender, StartBuildEventArgs e)
 		{
 			this.CurrentSession?.OnStopped(DateTime.Now);
+			this.ClearBuildLogs();
 
 			this.CurrentSession = new BuildSessionViewModel(e)
 			{
@@ -173,12 +179,31 @@ namespace FastBuild.Dashboard.ViewModels.Build
 		{
 			this.EnsureCurrentSession();
 			this.CurrentSession.OnJobFinished(e);
+			this.AddBuildLog(e);
 		}
 
 		private void Watcher_JobStarted(object sender, StartJobEventArgs e)
 		{
 			this.EnsureCurrentSession();
 			this.CurrentSession.OnJobStarted(e);
+		}
+
+		private void ClearBuildLogs()
+		{
+			Execute.BeginOnUIThread(() => this.BuildLogEntries.Clear());
+		}
+
+		private void AddBuildLog(FinishJobEventArgs e)
+		{
+			var entry = new BuildLogEntryViewModel(e);
+			Execute.BeginOnUIThread(() =>
+			{
+				this.BuildLogEntries.Add(entry);
+				while (this.BuildLogEntries.Count > MaxBuildLogEntryCount)
+				{
+					this.BuildLogEntries.RemoveAt(0);
+				}
+			});
 		}
 
 	}

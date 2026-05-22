@@ -30,7 +30,8 @@ namespace FastBuild.Dashboard.ViewModels.Settings
 		{
 			get
 			{
-				var workerCount = IoC.Get<IBrokerageService>().WorkerNames.Length;
+				var brokerageService = IoC.Get<IBrokerageService>();
+				var workerCount = brokerageService.WorkerNames.Length;
 				switch (workerCount)
 				{
 					case 0:

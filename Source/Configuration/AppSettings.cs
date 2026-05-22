@@ -15,9 +15,9 @@ namespace FastBuild.Dashboard.Configuration
 		public static AppSettings Default => _default ?? (_default = SettingsBase.Load<AppSettings>(AppSettingsDomain));
 
 		public override string Domain => AppSettingsDomain;
-		public int WorkerCores { get; set; } = -1;
+		public int WorkerCores { get; set; } = 16;
 		public int WorkerMode { get; set; } = (int)Services.Worker.WorkerMode.WorkWhenIdle;
-		public bool StartWithWindows { get; set; } = true;
+		public bool StartWithWindows { get; set; } = false;
 		public string ExternalSourceEditorPath { get; set; }
 		public string ExternalSourceEditorArgs { get; set; }
 		public string ExternalSourceEditorAdditionalArgs { get; set; }

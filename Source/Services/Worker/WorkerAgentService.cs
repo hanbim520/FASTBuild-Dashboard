@@ -37,6 +37,11 @@ namespace FastBuild.Dashboard.Services.Worker
 				AppSettings.Default.WorkerMode = (int)value;
 				AppSettings.Default.Save();
 
+				if (!_workerAgent.IsRunning && this.WorkerMode != WorkerMode.Disabled)
+				{
+					_workerAgent.Initialize();
+				}
+
 				if (_workerAgent.IsRunning)
 				{
 					_workerAgent.SetWorkerMode(this.WorkerMode);
@@ -60,6 +65,11 @@ namespace FastBuild.Dashboard.Services.Worker
 
 		public void Initialize()
 		{
+			if (this.WorkerMode == WorkerMode.Disabled)
+			{
+				return;
+			}
+
 			_workerAgent.Initialize();
 			if (_workerAgent.IsRunning)
 			{

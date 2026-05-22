@@ -179,7 +179,9 @@ namespace FastBuild.Dashboard.ViewModels.Build
 		}
 
 		public bool HasError => this.Status == BuildJobStatus.Error
-								|| this.Status == BuildJobStatus.Failed;
+								|| this.Status == BuildJobStatus.Failed
+								|| this.Status == BuildJobStatus.Timeout
+								|| this.Status == BuildJobStatus.Aborted;
 
 		public bool ShouldShowErrorMessage => this.HasError
 											  && !string.IsNullOrEmpty(this.Message);
@@ -204,6 +206,8 @@ namespace FastBuild.Dashboard.ViewModels.Build
 						return "Error Occurred";
 					case BuildJobStatus.Timeout:
 						return "Timed Out";
+					case BuildJobStatus.Aborted:
+						return "Aborted";
 					case BuildJobStatus.RacedOut:
 						return "Deprecated by Local Race";
 					case BuildJobStatus.Stopped:

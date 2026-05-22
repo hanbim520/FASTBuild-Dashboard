@@ -167,6 +167,7 @@
     <Compile Include="ViewModels\About\AboutViewModel.cs" />
     <Compile Include="ViewModels\Build\BuildErrorGroup.cs" />
     <Compile Include="ViewModels\Build\BuildErrorInfo.cs" />
+    <Compile Include="ViewModels\Build\BuildLogEntryViewModel.cs" />
     <Compile Include="ViewModels\Build\BuildInitiatorProcessViewModel.cs" />
     <Compile Include="ViewModels\Build\BuildInitiatorProcessViewModel.win32.cs">
       <DependentUpon>BuildInitiatorProcessViewModel.cs</DependentUpon>
@@ -179,6 +180,7 @@
     <Compile Include="ViewModels\IMainPage.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
     <Compile Include="ViewModels\Build\BuildSessionJobManager.cs" />
+    <Compile Include="ViewModels\Build\BuildStatusViewModel.cs" />
     <Compile Include="ViewModels\Settings\SettingsValidator.cs" />
     <Compile Include="ViewModels\Settings\SettingsViewModel.cs" />
     <Compile Include="ViewModels\Settings\SettingsViewModel.ExternalSourceEditor.cs">
@@ -191,6 +193,9 @@
     </Compile>
     <Compile Include="Views\Build\BuildSessionStatusView.xaml.cs">
       <DependentUpon>BuildSessionStatusView.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Build\BuildStatusView.xaml.cs">
+      <DependentUpon>BuildStatusView.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\Build\BuildJobsView.JobManagement.cs">
       <DependentUpon>BuildJobsView.cs</DependentUpon>
@@ -241,6 +246,10 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Views\Build\BuildSessionStatusView.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Views\Build\BuildStatusView.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
