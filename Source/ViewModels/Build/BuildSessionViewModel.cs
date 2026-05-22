@@ -122,8 +122,11 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			{
 				if (_fbuildProcess.HasExited)
 				{
-					_fbuildProcess = null;
-					this.OnStopped(DateTime.Now);
+					Execute.BeginOnUIThread(() =>
+					{
+						_fbuildProcess = null;
+						this.OnStopped(DateTime.Now);
+					});
 					// ReSharper disable AccessToDisposedClosure
 					timer.Elapsed -= TimerTick;
 					timer.Stop();

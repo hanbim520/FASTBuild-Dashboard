@@ -90,32 +90,41 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 		private void TickTimer_Elapsed(object sender, ElapsedEventArgs e)
 		{
-			// ReSharper disable once UseNullPropagation
-			if (this.CurrentSession == null)
+			Execute.BeginOnUIThread(() =>
 			{
-				return;
-			}
+				// ReSharper disable once UseNullPropagation
+				if (this.CurrentSession == null)
+				{
+					return;
+				}
 
-			// note we only need to tick current session
+				// note we only need to tick current session
 
-			// for sessions which are restoring history, don't use the real time so very long job graphs can be prevented
-			this.CurrentSession.Tick(this.CurrentSession.IsRestoringHistory ? _watcher.LastMessageTime : DateTime.Now);
+				// for sessions which are restoring history, don't use the real time so very long job graphs can be prevented
+				this.CurrentSession.Tick(this.CurrentSession.IsRestoringHistory ? _watcher.LastMessageTime : DateTime.Now);
+			});
 		}
 
 		private void Watcher_HistoryRestorationEnded(object sender, EventArgs e)
 		{
-			if (this.CurrentSession != null)
+			Execute.BeginOnUIThread(() =>
 			{
-				this.CurrentSession.IsRestoringHistory = false;
-			}
+				if (this.CurrentSession != null)
+				{
+					this.CurrentSession.IsRestoringHistory = false;
+				}
+			});
 		}
 
 		private void Watcher_HistoryRestorationStarted(object sender, EventArgs e)
 		{
-			if (this.CurrentSession != null)
+			Execute.BeginOnUIThread(() =>
 			{
-				this.CurrentSession.IsRestoringHistory = true;
-			}
+				if (this.CurrentSession != null)
+				{
+					this.CurrentSession.IsRestoringHistory = true;
+				}
+			});
 		}
 
 		private void EnsureCurrentSession()
@@ -139,71 +148,86 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 		private void Watcher_SessionStarted(object sender, StartBuildEventArgs e)
 		{
-			this.CurrentSession?.OnStopped(DateTime.Now);
-			this.ClearBuildLogs();
-
-			this.CurrentSession = new BuildSessionViewModel(e)
+			Execute.BeginOnUIThread(() =>
 			{
-				IsRestoringHistory = _watcher.IsRestoringHistory
-			};
+				this.CurrentSession?.OnStopped(DateTime.Now);
+				this.ClearBuildLogs();
 
-			this.Items.Add(this.CurrentSession);
-			this.ActivateItem(this.CurrentSession);
+				this.CurrentSession = new BuildSessionViewModel(e)
+				{
+					IsRestoringHistory = _watcher.IsRestoringHistory
+				};
 
-			this.TaskbarProgressState = TaskbarItemProgressState.Indeterminate;
-			this.WorkingStateChanged?.Invoke(this, true);
+				this.Items.Add(this.CurrentSession);
+				this.ActivateItem(this.CurrentSession);
+
+				this.TaskbarProgressState = TaskbarItemProgressState.Indeterminate;
+				this.WorkingStateChanged?.Invoke(this, true);
+			});
 		}
 
 		private void Watcher_SessionStopped(object sender, StopBuildEventArgs e)
 		{
-			this.CurrentSession?.OnStopped(e);
-			this.TaskbarProgressState = TaskbarItemProgressState.None;
-			this.WorkingStateChanged?.Invoke(this, false);
+			Execute.BeginOnUIThread(() =>
+			{
+				this.CurrentSession?.OnStopped(e);
+				this.TaskbarProgressState = TaskbarItemProgressState.None;
+				this.WorkingStateChanged?.Invoke(this, false);
+			});
 		}
 
 		private void Watcher_ReportProgress(object sender, ReportProgressEventArgs e)
 		{
-			this.EnsureCurrentSession();
-			this.CurrentSession.ReportProgress(e);
-			this.TaskbarProgressState = TaskbarItemProgressState.Normal;
-			this.TaskbarProgressValue = e.Progress / 100.0;
+			Execute.BeginOnUIThread(() =>
+			{
+				this.EnsureCurrentSession();
+				this.CurrentSession.ReportProgress(e);
+				this.TaskbarProgressState = TaskbarItemProgressState.Normal;
+				this.TaskbarProgressValue = e.Progress / 100.0;
+			});
 		}
 
 		private void Watcher_ReportCounter(object sender, ReportCounterEventArgs e)
 		{
-			this.EnsureCurrentSession();
-			this.CurrentSession.ReportCounter(e);
+			Execute.BeginOnUIThread(() =>
+			{
+				this.EnsureCurrentSession();
+				this.CurrentSession.ReportCounter(e);
+			});
 		}
 
 		private void Watcher_JobFinished(object sender, FinishJobEventArgs e)
 		{
-			this.EnsureCurrentSession();
-			this.CurrentSession.OnJobFinished(e);
-			this.AddBuildLog(e);
+			Execute.BeginOnUIThread(() =>
+			{
+				this.EnsureCurrentSession();
+				this.CurrentSession.OnJobFinished(e);
+				this.AddBuildLog(e);
+			});
 		}
 
 		private void Watcher_JobStarted(object sender, StartJobEventArgs e)
 		{
-			this.EnsureCurrentSession();
-			this.CurrentSession.OnJobStarted(e);
+			Execute.BeginOnUIThread(() =>
+			{
+				this.EnsureCurrentSession();
+				this.CurrentSession.OnJobStarted(e);
+			});
 		}
 
 		private void ClearBuildLogs()
 		{
-			Execute.BeginOnUIThread(() => this.BuildLogEntries.Clear());
+			this.BuildLogEntries.Clear();
 		}
 
 		private void AddBuildLog(FinishJobEventArgs e)
 		{
 			var entry = new BuildLogEntryViewModel(e);
-			Execute.BeginOnUIThread(() =>
+			this.BuildLogEntries.Add(entry);
+			while (this.BuildLogEntries.Count > MaxBuildLogEntryCount)
 			{
-				this.BuildLogEntries.Add(entry);
-				while (this.BuildLogEntries.Count > MaxBuildLogEntryCount)
-				{
-					this.BuildLogEntries.RemoveAt(0);
-				}
-			});
+				this.BuildLogEntries.RemoveAt(0);
+			}
 		}
 
 	}
