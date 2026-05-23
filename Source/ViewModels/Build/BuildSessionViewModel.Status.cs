@@ -175,7 +175,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			}
 		}
 
-		public int BuiltJobCount => _finishedJobCount;
+		public int BuiltJobCount => this.ClampCountToProgressTotal(_finishedJobCount);
 
 		public double JobProgressPercent => this.Progress;
 
@@ -186,6 +186,16 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			this.NotifyOfPropertyChange(nameof(this.BuiltJobCount));
 			this.NotifyOfPropertyChange(nameof(this.JobProgressPercent));
 			this.NotifyOfPropertyChange(nameof(this.BuildProgressText));
+		}
+
+		private int ClampCountToProgressTotal(int value)
+		{
+			if (!_hasProgressTotal || this.TotalJobCount <= 0)
+			{
+				return value;
+			}
+
+			return Math.Min(value, this.TotalJobCount);
 		}
 
 		private void ApplyProgressJobCounts(int? totalJobCount, int? remainingJobCount)
@@ -233,6 +243,18 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 		private void CompleteJobProgress()
 		{
+			if (_hasProgressTotal)
+			{
+				if (_finishedJobCount != this.TotalJobCount)
+				{
+					_finishedJobCount = this.TotalJobCount;
+					this.NotifyJobProgressChanged();
+				}
+
+				this.RemainingJobCount = 0;
+				return;
+			}
+
 			if (this.TotalJobCount < _finishedJobCount)
 			{
 				this.TotalJobCount = _finishedJobCount;
@@ -248,7 +270,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 		public int SuccessfulJobCount
 		{
-			get => _successfulJobCount;
+			get => this.ClampCountToProgressTotal(_successfulJobCount);
 			private set
 			{
 				if (value == _successfulJobCount)
