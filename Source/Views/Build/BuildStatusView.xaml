@@ -145,6 +145,11 @@
                                Margin="16,0,0,0" />
                     <TextBlock Text="{Binding WarningLogCount, StringFormat={}  {0} warnings}"
                                Margin="16,0,0,0" />
+                    <TextBlock Text="{Binding CopyStatusMessage}"
+                               Visibility="{Binding HasCopyStatusMessage, Converter={support:BoolToVisibilityConverter}}"
+                               Margin="16,0,0,0"
+                               Opacity="0.72"
+                               TextTrimming="CharacterEllipsis" />
                 </StackPanel>
             </DockPanel>
 

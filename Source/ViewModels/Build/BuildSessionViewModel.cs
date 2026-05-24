@@ -179,7 +179,6 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 			this.Progress = e.Progress;
 			this.ApplyProgressJobCounts(e.TotalJobCount, e.RemainingJobCount);
-			this.UpdateProgressBasedJobTotal();
 			if (this.Progress >= 99.9)
 			{
 				this.CompleteJobProgress();

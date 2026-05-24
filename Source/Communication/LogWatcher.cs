@@ -11,6 +11,7 @@ namespace FastBuild.Dashboard.Communication
 	internal class LogWatcher
 	{
 		private const string LogRelativePath = @"FASTBuild\FastBuildLog.log";
+		private const int MaxReadBufferLength = 64 * 1024;
 
 		private string _logPath;
 
@@ -53,56 +54,92 @@ namespace FastBuild.Dashboard.Communication
 			_fileStreamPosition = 0;
 			while (true)
 			{
-				this.UpdateLogPath();
-
-				if (File.Exists(_logPath))
+				try
 				{
-					var fileTime = File.GetLastWriteTime(_logPath);
-					if (fileTime != _currentFileTime		// the log file has been reset or saved (closed)
-						&& new FileInfo(_logPath).Length < _fileStreamPosition)	// this guarantees it is a reset
-					{
-						_fileStreamPosition = 0;
-						this.LogReset?.Invoke(this, EventArgs.Empty);
-						_currentFileTime = fileTime;
-					}
-
-					using (var file = new FileStream(_logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-					{
-						var expectedLength = (int)(file.Length - _fileStreamPosition);
-
-						if (expectedLength > 0)
-						{
-							var buffer = new byte[expectedLength];
-
-							file.Seek(_fileStreamPosition, SeekOrigin.Begin);
-							_fileStreamPosition += file.Read(buffer, 0, expectedLength);
-
-							foreach (var c in buffer)
-							{
-								if (c == '\n')
-								{
-									this.FlushMessage();
-									continue;
-								}
-
-								_messageBuffer.Add(c);
-							}
-						}
-					}
-
-					if (this.IsRestoringHistory)
-					{
-						this.IsRestoringHistory = false;
-						this.HistoryRestorationEnded?.Invoke(this, EventArgs.Empty);
-					}
+					this.ReadRemainingLogs();
 				}
-				else
+				catch (Exception ex) when (IsRecoverableLogAccessException(ex))
 				{
-					_fileStreamPosition = 0;
 				}
 
 				Thread.Sleep(500);
 			}
+		}
+
+		private void ReadRemainingLogs()
+		{
+			this.UpdateLogPath();
+
+			if (File.Exists(_logPath))
+			{
+				var fileInfo = new FileInfo(_logPath);
+				var fileTime = fileInfo.LastWriteTime;
+				if (fileInfo.Length < _fileStreamPosition)
+				{
+					_fileStreamPosition = 0;
+					_messageBuffer.Clear();
+					this.LogReset?.Invoke(this, EventArgs.Empty);
+				}
+
+				_currentFileTime = fileTime;
+
+				using (var file = new FileStream(_logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+				{
+					var expectedLength = file.Length - _fileStreamPosition;
+					if (expectedLength > 0)
+					{
+						file.Seek(_fileStreamPosition, SeekOrigin.Begin);
+
+						var buffer = new byte[Math.Min(MaxReadBufferLength, expectedLength)];
+						while (expectedLength > 0)
+						{
+							var readLength = file.Read(buffer, 0, (int)Math.Min(buffer.Length, expectedLength));
+							if (readLength == 0)
+							{
+								break;
+							}
+
+							_fileStreamPosition += readLength;
+							expectedLength -= readLength;
+
+							for (var i = 0; i < readLength; ++i)
+							{
+								this.ReadLogByte(buffer[i]);
+							}
+						}
+					}
+				}
+
+				if (this.IsRestoringHistory)
+				{
+					this.IsRestoringHistory = false;
+					this.HistoryRestorationEnded?.Invoke(this, EventArgs.Empty);
+				}
+			}
+			else
+			{
+				_fileStreamPosition = 0;
+			}
+		}
+
+		private void ReadLogByte(byte c)
+		{
+			if (c == '\n')
+			{
+				this.FlushMessage();
+				return;
+			}
+
+			_messageBuffer.Add(c);
+		}
+
+		private static bool IsRecoverableLogAccessException(Exception ex)
+		{
+			return ex is IOException
+				|| ex is UnauthorizedAccessException
+				|| ex is ArgumentException
+				|| ex is NotSupportedException
+				|| ex is System.Security.SecurityException;
 		}
 
 		private void UpdateLogPath()

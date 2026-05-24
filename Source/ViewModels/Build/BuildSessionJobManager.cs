@@ -14,7 +14,13 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			{
 				Debug.Assert(x != null, "x != null");
 				Debug.Assert(y != null, "y != null");
-				return x.StartTime.CompareTo(y.StartTime);
+				var result = x.StartTime.CompareTo(y.StartTime);
+				if (result != 0)
+				{
+					return result;
+				}
+
+				return x.SequenceId.CompareTo(y.SequenceId);
 			}
 		}
 
