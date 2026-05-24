@@ -12,7 +12,7 @@ namespace FastBuild.Dashboard.Communication
 	{
 		private const string LogRelativePath = @"FASTBuild\FastBuildLog.log";
 
-		private readonly string _logPath;
+		private string _logPath;
 
 		public event EventHandler HistoryRestorationStarted;
 		public event EventHandler HistoryRestorationEnded;
@@ -31,25 +31,13 @@ namespace FastBuild.Dashboard.Communication
 #if DEBUG && DEBUG_TEST_LOG
 			_logPath = @"Test\FastBuildLog.log";
 #else
-			var path = Path.GetTempPath();
-			var fastbuildTempPath = Environment.GetEnvironmentVariable("FASTBUILD_TEMP_PATH");
-			if (fastbuildTempPath != null && System.IO.Directory.Exists(fastbuildTempPath))
-			{
-				path = fastbuildTempPath;
-			}
-
-			_logPath = Path.Combine(path, LogRelativePath);
+			_logPath = this.FindLogPath();
 #endif
 		}
 
 		public void Start()
 		{
-			var logDirectory = Path.GetDirectoryName(_logPath);
-			if (!Directory.Exists(logDirectory))
-			{
-				Debug.Assert(logDirectory != null, "logDirectory != null");
-				Directory.CreateDirectory(logDirectory);
-			}
+			this.EnsureLogDirectory();
 
 			if (File.Exists(_logPath))
 			{
@@ -65,6 +53,8 @@ namespace FastBuild.Dashboard.Communication
 			_fileStreamPosition = 0;
 			while (true)
 			{
+				this.UpdateLogPath();
+
 				if (File.Exists(_logPath))
 				{
 					var fileTime = File.GetLastWriteTime(_logPath);
@@ -112,6 +102,86 @@ namespace FastBuild.Dashboard.Communication
 				}
 
 				Thread.Sleep(500);
+			}
+		}
+
+		private void UpdateLogPath()
+		{
+#if !(DEBUG && DEBUG_TEST_LOG)
+			var logPath = this.FindLogPath();
+			if (string.Equals(logPath, _logPath, StringComparison.OrdinalIgnoreCase))
+			{
+				return;
+			}
+
+			_logPath = logPath;
+			_fileStreamPosition = 0;
+			_currentFileTime = DateTime.MinValue;
+			_messageBuffer.Clear();
+			this.EnsureLogDirectory();
+			this.LogReset?.Invoke(this, EventArgs.Empty);
+
+			if (File.Exists(_logPath))
+			{
+				this.IsRestoringHistory = true;
+				this.HistoryRestorationStarted?.Invoke(this, EventArgs.Empty);
+			}
+#endif
+		}
+
+		private string FindLogPath()
+		{
+			var fastbuildTempPath = Environment.GetEnvironmentVariable("FASTBUILD_TEMP_PATH");
+			if (fastbuildTempPath != null && Directory.Exists(fastbuildTempPath))
+			{
+				return Path.Combine(fastbuildTempPath, LogRelativePath);
+			}
+
+			var selectedPath = Path.Combine(Path.GetTempPath(), LogRelativePath);
+			var selectedTime = File.Exists(selectedPath) ? File.GetLastWriteTime(selectedPath) : DateTime.MinValue;
+
+			// UnrealBuildTool overrides TEMP for child processes, so UE builds write the monitor log below this folder.
+			var unrealBuildToolTempPath = Path.Combine(Path.GetTempPath(), "UnrealBuildTool");
+			if (!Directory.Exists(unrealBuildToolTempPath))
+			{
+				return selectedPath;
+			}
+
+			try
+			{
+				foreach (var directory in Directory.GetDirectories(unrealBuildToolTempPath))
+				{
+					var candidatePath = Path.Combine(directory, LogRelativePath);
+					if (!File.Exists(candidatePath))
+					{
+						continue;
+					}
+
+					var candidateTime = File.GetLastWriteTime(candidatePath);
+					if (candidateTime > selectedTime)
+					{
+						selectedPath = candidatePath;
+						selectedTime = candidateTime;
+					}
+				}
+			}
+			catch (IOException)
+			{
+			}
+			catch (UnauthorizedAccessException)
+			{
+			}
+
+			return selectedPath;
+		}
+
+		private void EnsureLogDirectory()
+		{
+			var logDirectory = Path.GetDirectoryName(_logPath);
+			if (!Directory.Exists(logDirectory))
+			{
+				Debug.Assert(logDirectory != null, "logDirectory != null");
+				Directory.CreateDirectory(logDirectory);
 			}
 		}
 
