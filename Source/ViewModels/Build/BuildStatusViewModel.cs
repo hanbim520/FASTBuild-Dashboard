@@ -2,7 +2,9 @@ using System;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Windows;
 using Caliburn.Micro;
 using FastBuild.Dashboard.Support;
@@ -14,10 +16,16 @@ namespace FastBuild.Dashboard.ViewModels.Build
 		private const string AllFilter = "All";
 		private const string ErrorsFilter = "Errors";
 		private const string WarningsFilter = "Warnings";
+		private const int ClipboardRetryCount = 40;
+		private const int ClipboardRetryDelayMilliseconds = 100;
+		private const int ClipboardTimeoutMilliseconds = 5000;
 
 		private readonly BuildWatcherViewModel _buildWatcher;
 		private string _selectedLogFilter = AllFilter;
 		private BuildLogEntryViewModel _selectedBuildLog;
+		private string _copyStatusMessage;
+		private bool _isCopyingToClipboard;
+		private int _copyOperationId;
 
 		public string Icon => "ClipboardText";
 		public string DisplayName => "Build Status";
@@ -72,12 +80,44 @@ namespace FastBuild.Dashboard.ViewModels.Build
 		public int ErrorLogCount => _buildWatcher.BuildLogEntries.Count(l => l.IsError);
 		public int WarningLogCount => _buildWatcher.BuildLogEntries.Count(l => l.IsWarning);
 		public bool HasVisibleLogs => this.VisibleBuildLogs.Count > 0;
+		public string CopyStatusMessage
+		{
+			get => _copyStatusMessage;
+			private set
+			{
+				if (value == _copyStatusMessage)
+				{
+					return;
+				}
+
+				_copyStatusMessage = value;
+				this.NotifyOfPropertyChange();
+				this.NotifyOfPropertyChange(nameof(this.HasCopyStatusMessage));
+			}
+		}
+
+		public bool HasCopyStatusMessage => !string.IsNullOrEmpty(this.CopyStatusMessage);
+		private bool IsCopyingToClipboard
+		{
+			get => _isCopyingToClipboard;
+			set
+			{
+				if (value == _isCopyingToClipboard)
+				{
+					return;
+				}
+
+				_isCopyingToClipboard = value;
+				this.CopySelectedBuildLogCommand.OnCanExecuteChanged();
+				this.CopyVisibleBuildLogsCommand.OnCanExecuteChanged();
+			}
+		}
 
 		public BuildStatusViewModel(BuildWatcherViewModel buildWatcher)
 		{
 			_buildWatcher = buildWatcher;
-			this.CopySelectedBuildLogCommand = new SimpleCommand(_ => this.CopySelectedBuildLog(), _ => this.SelectedBuildLog != null);
-			this.CopyVisibleBuildLogsCommand = new SimpleCommand(_ => this.CopyVisibleBuildLogs(), _ => this.VisibleBuildLogs.Count > 0);
+			this.CopySelectedBuildLogCommand = new SimpleCommand(_ => this.CopySelectedBuildLog(), _ => this.SelectedBuildLog != null && !this.IsCopyingToClipboard);
+			this.CopyVisibleBuildLogsCommand = new SimpleCommand(_ => this.CopyVisibleBuildLogs(), _ => this.VisibleBuildLogs.Count > 0 && !this.IsCopyingToClipboard);
 			_buildWatcher.PropertyChanged += this.BuildWatcher_PropertyChanged;
 			_buildWatcher.BuildLogEntries.CollectionChanged += this.BuildLogEntries_CollectionChanged;
 			this.RefreshVisibleBuildLogs();
@@ -91,7 +131,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 				return;
 			}
 
-			Clipboard.SetText(FormatLogEntry(this.SelectedBuildLog));
+			this.CopyToClipboard(FormatLogEntry(this.SelectedBuildLog));
 		}
 
 		public void CopyVisibleBuildLogs()
@@ -102,7 +142,114 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			}
 
 			var text = string.Join(Environment.NewLine, this.VisibleBuildLogs.Select(FormatLogEntry));
-			Clipboard.SetText(text);
+			this.CopyToClipboard(text);
+		}
+
+		private void CopyToClipboard(string text)
+		{
+			if (string.IsNullOrEmpty(text) || this.IsCopyingToClipboard)
+			{
+				return;
+			}
+
+			this.IsCopyingToClipboard = true;
+			this.CopyStatusMessage = "Copying...";
+			var operationId = Interlocked.Increment(ref _copyOperationId);
+			var timeoutTimer = new Timer(
+				_ => this.CompleteCopyOperation(operationId, "Clipboard busy; copy timed out"),
+				null,
+				ClipboardTimeoutMilliseconds,
+				Timeout.Infinite);
+
+			var copyThread = new Thread(() =>
+			{
+				var succeeded = false;
+
+				try
+				{
+					succeeded = TrySetClipboardText(text);
+				}
+				catch
+				{
+					succeeded = false;
+				}
+				finally
+				{
+					timeoutTimer.Dispose();
+					this.CompleteCopyOperation(operationId, succeeded ? "Copied" : "Clipboard busy; copy failed");
+				}
+			});
+			copyThread.SetApartmentState(ApartmentState.STA);
+			copyThread.IsBackground = true;
+			copyThread.Start();
+		}
+
+		private void CompleteCopyOperation(int operationId, string statusMessage)
+		{
+			var updateStatus = new System.Action(() =>
+			{
+				if (operationId != _copyOperationId || !this.IsCopyingToClipboard)
+				{
+					return;
+				}
+
+				Interlocked.Increment(ref _copyOperationId);
+				this.CopyStatusMessage = statusMessage;
+				this.IsCopyingToClipboard = false;
+			});
+
+			if (Application.Current?.Dispatcher != null)
+			{
+				Application.Current.Dispatcher.BeginInvoke(updateStatus);
+			}
+			else
+			{
+				Execute.BeginOnUIThread(updateStatus);
+			}
+		}
+
+		private static bool TrySetClipboardText(string text)
+		{
+			for (var attempt = 0; attempt < ClipboardRetryCount; ++attempt)
+			{
+				try
+				{
+					System.Windows.Forms.Clipboard.SetText(text);
+					return true;
+				}
+				catch (Exception ex) when (IsClipboardException(ex))
+				{
+					try
+					{
+						Clipboard.SetText(text);
+						return true;
+					}
+					catch (Exception innerEx) when (IsClipboardException(innerEx))
+					{
+						try
+						{
+							Clipboard.SetDataObject(text, true);
+							return true;
+						}
+						catch (Exception fallbackEx) when (IsClipboardException(fallbackEx))
+						{
+							// Ignore and retry.
+						}
+					}
+					Thread.Sleep(ClipboardRetryDelayMilliseconds);
+				}
+				catch
+				{
+					return false;
+				}
+			}
+
+			return false;
+		}
+
+		private static bool IsClipboardException(Exception ex)
+		{
+			return ex is ExternalException || ex is COMException || ex is InvalidOperationException;
 		}
 
 		private static string FormatLogEntry(BuildLogEntryViewModel entry)

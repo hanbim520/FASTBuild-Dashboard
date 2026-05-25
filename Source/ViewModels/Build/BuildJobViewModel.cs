@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Text.RegularExpressions;
 using System.Windows.Media;
 using Caliburn.Micro;
@@ -15,6 +16,8 @@ namespace FastBuild.Dashboard.ViewModels.Build
 	[DebuggerDisplay("Job:{" + nameof(BuildJobViewModel.DisplayName) + "}")]
 	internal class BuildJobViewModel : PropertyChangedBase, IBuildJobViewModel
 	{
+		private static long _nextSequenceId;
+
 		private static string GenerateDisplayName(string eventName)
 			=> Path.GetFileName(eventName) ?? eventName;
 
@@ -35,6 +38,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 		private string _message;
 		private IEnumerable<BuildErrorGroup> _errorGroups;
 		public DateTime StartTime { get; }
+		public long SequenceId { get; }
 		public string DisplayStartTime => $"Started: {this.StartTime}";
 		public double StartTimeOffset { get; }
 
@@ -238,6 +242,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			this.EventName = e.EventName;
 			this.DisplayName = BuildJobViewModel.GenerateDisplayName(this.EventName);
 			this.StartTime = e.Time;
+			this.SequenceId = Interlocked.Increment(ref _nextSequenceId);
 			this.StartTimeOffset = (e.Time - ownerCore.OwnerWorker.OwnerSession.StartTime).TotalSeconds;
 			this.Status = BuildJobStatus.Building;
 			this.UpdateUIBrushes();

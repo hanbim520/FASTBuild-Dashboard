@@ -179,7 +179,6 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 			this.Progress = e.Progress;
 			this.ApplyProgressJobCounts(e.TotalJobCount, e.RemainingJobCount);
-			this.UpdateProgressBasedJobTotal();
 			if (this.Progress >= 99.9)
 			{
 				this.CompleteJobProgress();
@@ -220,6 +219,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			{
 				case BuildJobStatus.Success:
 				case BuildJobStatus.SuccessCached:
+				case BuildJobStatus.SuccessPreprocessed:
 				case BuildJobStatus.Failed:
 				case BuildJobStatus.Error:
 				case BuildJobStatus.Timeout:
@@ -228,6 +228,21 @@ namespace FastBuild.Dashboard.ViewModels.Build
 				default:
 					return false;
 			}
+		}
+
+		private static bool IsCompilationJob(string eventName)
+		{
+			if (string.IsNullOrEmpty(eventName))
+			{
+				return false;
+			}
+
+			var name = eventName.Trim('"');
+			return name.EndsWith(".obj", StringComparison.OrdinalIgnoreCase)
+				|| name.EndsWith(".o", StringComparison.OrdinalIgnoreCase)
+				|| name.EndsWith(".res", StringComparison.OrdinalIgnoreCase)
+				|| name.EndsWith(".pch", StringComparison.OrdinalIgnoreCase)
+				|| name.EndsWith(".gch", StringComparison.OrdinalIgnoreCase);
 		}
 
 		public void OnJobFinished(FinishJobEventArgs e)
@@ -247,39 +262,57 @@ namespace FastBuild.Dashboard.ViewModels.Build
 				this.JobManager.NotifyJobFinished(job);
 			}
 
-			switch (e.Result)
+			if (job != null)
 			{
-				case BuildJobStatus.Success:
-					++this.SuccessfulJobCount;
-					break;
-				case BuildJobStatus.SuccessCached:
-					++this.SuccessfulJobCount;
-					++this.CacheHitCount;
-					break;
-				case BuildJobStatus.SuccessPreprocessed:
-					++this.PreprocessedJobCount;
-					break;
-				case BuildJobStatus.Failed:
-				case BuildJobStatus.Error:
-				case BuildJobStatus.Timeout:
-				case BuildJobStatus.Aborted:
-					++this.FailedJobCount;
-					break;
-			}
+				var isCompilationJob = IsCompilationJob(job.EventName);
 
-			if (BuildLogEntryViewModel.ContainsCompilerWarning(e.Message))
-			{
-				++this.WarningJobCount;
-			}
+				switch (e.Result)
+				{
+					case BuildJobStatus.Success:
+						if (isCompilationJob)
+						{
+							++this.SuccessfulJobCount;
+						}
+						break;
+					case BuildJobStatus.SuccessCached:
+						if (isCompilationJob)
+						{
+							++this.SuccessfulJobCount;
+							++this.CacheHitCount;
+						}
+						break;
+					case BuildJobStatus.SuccessPreprocessed:
+						if (isCompilationJob)
+						{
+							++this.PreprocessedJobCount;
+						}
+						break;
+					case BuildJobStatus.Failed:
+					case BuildJobStatus.Error:
+					case BuildJobStatus.Timeout:
+					case BuildJobStatus.Aborted:
+						if (isCompilationJob)
+						{
+							++_failedCompilationJobCount;
+						}
+						++this.FailedJobCount;
+						break;
+				}
 
-			if (IsFinalBuildResult(e.Result))
-			{
-				this.TrackFinishedJob();
-			}
+				if (BuildLogEntryViewModel.ContainsCompilerWarning(e.Message))
+				{
+					++this.WarningJobCount;
+				}
 
-			if (this.InProgressJobCount > 0)
-			{
-				--this.InProgressJobCount;
+				if (isCompilationJob && IsFinalBuildResult(e.Result))
+				{
+					this.TrackFinishedJob();
+				}
+
+				if (isCompilationJob && this.InProgressJobCount > 0)
+				{
+					--this.InProgressJobCount;
+				}
 			}
 
 			this.UpdateActiveWorkerAndCoreCount();
@@ -291,7 +324,10 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 			var job = this.EnsureWorker(e.HostName).OnJobStarted(e, this.StartTime);
 			this.JobManager.Add(job);
-			++this.InProgressJobCount;
+			if (IsCompilationJob(job.EventName))
+			{
+				++this.InProgressJobCount;
+			}
 
 			if (!this.IsRunning)
 			{

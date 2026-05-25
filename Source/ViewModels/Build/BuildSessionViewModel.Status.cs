@@ -14,10 +14,11 @@ namespace FastBuild.Dashboard.ViewModels.Build
 		private int _remainingJobCount;
 		private int _finishedJobCount;
 		private bool _hasProgressTotal;
-		private bool _hasProgressEstimatedTotal;
+		private bool _hasProgressRemaining;
 		private int _successfulJobCount;
 		private int _preprocessedJobCount;
 		private int _failedJobCount;
+		private int _failedCompilationJobCount;
 		private int _warningJobCount;
 		private int _cacheHitCount;
 		private int _activeWorkerCount;
@@ -108,7 +109,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 				if (this.IsRunning)
 				{
-					return $"Building ({this.Progress:0}%)";
+					return $"Building ({this.JobProgressPercent:0}%)";
 				}
 
 				return "Finished";
@@ -117,7 +118,15 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 		public int InProgressJobCount
 		{
-			get => _inProgressJobCount;
+			get
+			{
+				if (_hasProgressTotal)
+				{
+					return Math.Min(_inProgressJobCount, this.RemainingJobCount);
+				}
+
+				return _inProgressJobCount;
+			}
 			private set
 			{
 				if (value == _inProgressJobCount)
@@ -156,7 +165,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 		public int RemainingJobCount
 		{
-			get => _remainingJobCount;
+			get => this.GetDisplayRemainingJobCount();
 			private set
 			{
 				value = Math.Max(0, value);
@@ -175,57 +184,92 @@ namespace FastBuild.Dashboard.ViewModels.Build
 			}
 		}
 
-		public int BuiltJobCount => _finishedJobCount;
+		public int BuiltJobCount
+		{
+			get
+			{
+				if (_hasProgressTotal)
+				{
+					return Math.Max(0, Math.Min(this.TotalJobCount, this.TotalJobCount - this.RemainingJobCount));
+				}
 
-		public double JobProgressPercent => this.Progress;
+				return _finishedJobCount;
+			}
+		}
+
+		private int GetDisplayRemainingJobCount()
+		{
+			var remainingJobCount = Math.Max(0, _remainingJobCount);
+			if (!_hasProgressTotal || this.TotalJobCount <= 0)
+			{
+				return remainingJobCount;
+			}
+
+			remainingJobCount = Math.Min(this.TotalJobCount, remainingJobCount);
+			return remainingJobCount;
+		}
+
+		public double JobProgressPercent
+		{
+			get
+			{
+				if (_hasProgressTotal && this.TotalJobCount > 0)
+				{
+					return Math.Max(0, Math.Min(100, this.BuiltJobCount * 100.0 / this.TotalJobCount));
+				}
+
+				return this.Progress;
+			}
+		}
 
 		public string BuildProgressText => $"{this.BuiltJobCount} of {this.TotalJobCount} built ({this.JobProgressPercent:0}%)";
 
 		private void NotifyJobProgressChanged()
 		{
+			this.NotifyOfPropertyChange(nameof(this.RemainingJobCount));
 			this.NotifyOfPropertyChange(nameof(this.BuiltJobCount));
 			this.NotifyOfPropertyChange(nameof(this.JobProgressPercent));
 			this.NotifyOfPropertyChange(nameof(this.BuildProgressText));
+			this.NotifyOfPropertyChange(nameof(this.StatusText));
+			this.NotifyOfPropertyChange(nameof(this.InProgressJobCount));
+			this.NotifyOfPropertyChange(nameof(this.SuccessfulJobCount));
+			this.NotifyOfPropertyChange(nameof(this.PreprocessedJobCount));
+			this.NotifyOfPropertyChange(nameof(this.CacheHitCount));
+			this.NotifyOfPropertyChange(nameof(this.FailedJobCount));
 		}
 
 		private void ApplyProgressJobCounts(int? totalJobCount, int? remainingJobCount)
 		{
-			if (!totalJobCount.HasValue && !remainingJobCount.HasValue)
-			{
-				return;
-			}
-
 			if (!_hasProgressTotal && totalJobCount.HasValue && totalJobCount.Value > 0)
 			{
 				_hasProgressTotal = true;
 				this.TotalJobCount = totalJobCount.Value;
-				this.RemainingJobCount = this.TotalJobCount - _finishedJobCount;
+			}
+
+			if (_hasProgressTotal)
+			{
+				if (remainingJobCount.HasValue)
+				{
+					_hasProgressRemaining = true;
+					this.RemainingJobCount = Math.Min(this.TotalJobCount, remainingJobCount.Value);
+				}
+				else if (!_hasProgressRemaining)
+				{
+					this.RemainingJobCount = this.TotalJobCount - _finishedJobCount;
+				}
 			}
 
 			this.NotifyJobProgressChanged();
 		}
 
-		private void UpdateProgressBasedJobTotal()
-		{
-			if (_hasProgressTotal || _hasProgressEstimatedTotal || this.Progress <= 0 || _finishedJobCount <= 0)
-			{
-				return;
-			}
-
-			var totalJobCount = (int)Math.Ceiling(_finishedJobCount * 100.0 / this.Progress);
-			this.TotalJobCount = Math.Max(_finishedJobCount, totalJobCount);
-			this.RemainingJobCount = this.TotalJobCount - _finishedJobCount;
-			_hasProgressEstimatedTotal = true;
-		}
-
 		private void TrackFinishedJob()
 		{
 			++_finishedJobCount;
-			if (_hasProgressTotal || _hasProgressEstimatedTotal)
+			if (_hasProgressTotal && !_hasProgressRemaining)
 			{
 				this.RemainingJobCount = this.TotalJobCount - _finishedJobCount;
 			}
-			else
+			else if (!_hasProgressTotal)
 			{
 				this.NotifyJobProgressChanged();
 			}
@@ -233,22 +277,26 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 		private void CompleteJobProgress()
 		{
-			if (this.TotalJobCount < _finishedJobCount)
+			if (!_hasProgressTotal && this.TotalJobCount < _finishedJobCount)
 			{
 				this.TotalJobCount = _finishedJobCount;
 			}
-			else if (_finishedJobCount < this.TotalJobCount)
-			{
-				_finishedJobCount = this.TotalJobCount;
-				this.NotifyJobProgressChanged();
-			}
 
 			this.RemainingJobCount = 0;
+			_hasProgressRemaining = _hasProgressTotal;
 		}
 
 		public int SuccessfulJobCount
 		{
-			get => _successfulJobCount;
+			get
+			{
+				if (_hasProgressTotal)
+				{
+					return Math.Max(0, this.BuiltJobCount - _failedCompilationJobCount);
+				}
+
+				return _successfulJobCount;
+			}
 			private set
 			{
 				if (value == _successfulJobCount)
@@ -261,13 +309,14 @@ namespace FastBuild.Dashboard.ViewModels.Build
 				if (!this.IsRestoringHistory)
 				{
 					this.NotifyOfPropertyChange();
+					this.NotifyOfPropertyChange(nameof(this.CacheHitCount));
 				}
 			}
 		}
 
 		public int PreprocessedJobCount
 		{
-			get => _preprocessedJobCount;
+			get => this.ClampToProgressTotal(_preprocessedJobCount);
 			private set
 			{
 				if (value == _preprocessedJobCount)
@@ -299,6 +348,8 @@ namespace FastBuild.Dashboard.ViewModels.Build
 				if (!this.IsRestoringHistory)
 				{
 					this.NotifyOfPropertyChange();
+					this.NotifyOfPropertyChange(nameof(this.SuccessfulJobCount));
+					this.NotifyOfPropertyChange(nameof(this.CacheHitCount));
 				}
 			}
 		}
@@ -324,7 +375,7 @@ namespace FastBuild.Dashboard.ViewModels.Build
 
 		public int CacheHitCount
 		{
-			get => _cacheHitCount;
+			get => this.ClampToProgressTotal(_cacheHitCount);
 			private set
 			{
 				if (value == _cacheHitCount)
@@ -339,6 +390,16 @@ namespace FastBuild.Dashboard.ViewModels.Build
 					this.NotifyOfPropertyChange();
 				}
 			}
+		}
+
+		private int ClampToProgressTotal(int value)
+		{
+			if (!_hasProgressTotal || this.TotalJobCount <= 0)
+			{
+				return Math.Max(0, value);
+			}
+
+			return Math.Max(0, Math.Min(value, this.TotalJobCount));
 		}
 
 		public int ActiveWorkerCount
