@@ -5,6 +5,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using FastBuild.Dashboard.Configuration;
 
 namespace FastBuild.Dashboard.Communication
 {
@@ -168,6 +169,12 @@ namespace FastBuild.Dashboard.Communication
 
 		private string FindLogPath()
 		{
+			var monitorLogPath = LogWatcher.ResolveConfiguredLogPath(AppSettings.Default.MonitorLogPath);
+			if (monitorLogPath != null)
+			{
+				return monitorLogPath;
+			}
+
 			var fastbuildTempPath = Environment.GetEnvironmentVariable("FASTBUILD_TEMP_PATH");
 			if (fastbuildTempPath != null && Directory.Exists(fastbuildTempPath))
 			{
@@ -212,9 +219,48 @@ namespace FastBuild.Dashboard.Communication
 			return selectedPath;
 		}
 
+		private static string ResolveConfiguredLogPath(string monitorLogPath)
+		{
+			if (string.IsNullOrWhiteSpace(monitorLogPath))
+			{
+				return null;
+			}
+
+			try
+			{
+				var expandedPath = Environment.ExpandEnvironmentVariables(monitorLogPath.Trim().Trim('"'));
+				if (string.IsNullOrWhiteSpace(expandedPath))
+				{
+					return null;
+				}
+
+				if (Directory.Exists(expandedPath))
+				{
+					var directLogPath = Path.Combine(expandedPath, "FastBuildLog.log");
+					if (File.Exists(directLogPath))
+					{
+						return directLogPath;
+					}
+
+					return Path.Combine(expandedPath, LogRelativePath);
+				}
+
+				return Path.GetFullPath(expandedPath);
+			}
+			catch (Exception ex) when (IsRecoverableLogAccessException(ex))
+			{
+				return null;
+			}
+		}
+
 		private void EnsureLogDirectory()
 		{
 			var logDirectory = Path.GetDirectoryName(_logPath);
+			if (string.IsNullOrEmpty(logDirectory))
+			{
+				return;
+			}
+
 			if (!Directory.Exists(logDirectory))
 			{
 				Debug.Assert(logDirectory != null, "logDirectory != null");

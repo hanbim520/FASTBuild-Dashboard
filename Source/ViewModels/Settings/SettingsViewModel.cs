@@ -78,6 +78,18 @@ namespace FastBuild.Dashboard.ViewModels.Settings
 			}
 		}
 
+		[CustomValidation(typeof(SettingsValidator), "ValidateMonitorLogPath")]
+		public string MonitorLogPath
+		{
+			get => AppSettings.Default.MonitorLogPath;
+			set
+			{
+				AppSettings.Default.MonitorLogPath = value;
+				AppSettings.Default.Save();
+				this.NotifyOfPropertyChange();
+			}
+		}
+
 		public string DisplayCores => this.WorkerCores == 1 ? "1 core" : $"up to {this.WorkerCores} cores";
 
 		public int MaximumCores { get; }
@@ -113,6 +125,22 @@ namespace FastBuild.Dashboard.ViewModels.Settings
 			if (dialog.ShowDialog(App.Current.MainWindow) == true)
 			{
 				this.BrokeragePath = dialog.SelectedPath;
+			}
+		}
+
+		public void BrowseMonitorLogPath()
+		{
+			var dialog = new VistaOpenFileDialog
+			{
+				Title = "Browse Monitor Log Path",
+				Filter = "FASTBuild Monitor Log|FastBuildLog.log|Log Files|*.log|All Files|*.*",
+				CheckFileExists = false,
+				FileName = string.IsNullOrWhiteSpace(this.MonitorLogPath) ? "FastBuildLog.log" : this.MonitorLogPath
+			};
+
+			if (dialog.ShowDialog(App.Current.MainWindow) == true)
+			{
+				this.MonitorLogPath = dialog.FileName;
 			}
 		}
 	}

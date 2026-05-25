@@ -39,5 +39,28 @@ namespace FastBuild.Dashboard.ViewModels.Settings
 			return ValidationResult.Success;
 		}
 
+		public static ValidationResult ValidateMonitorLogPath(string monitorLogPath, ValidationContext context)
+		{
+			if (string.IsNullOrWhiteSpace(monitorLogPath))
+			{
+				return ValidationResult.Success;
+			}
+
+			var expandedPath = System.Environment.ExpandEnvironmentVariables(monitorLogPath.Trim().Trim('"'));
+			if (File.Exists(expandedPath) || Directory.Exists(expandedPath))
+			{
+				return ValidationResult.Success;
+			}
+
+			var parentPath = Path.GetDirectoryName(expandedPath);
+			if (string.IsNullOrEmpty(parentPath) || Directory.Exists(parentPath))
+			{
+				return ValidationResult.Success;
+			}
+
+			return new ValidationResult("specified monitor log path parent folder not existed",
+				new[] { nameof(SettingsViewModel.MonitorLogPath) });
+		}
+
 	}
 }

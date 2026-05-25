@@ -184,6 +184,22 @@
 
                     <StackPanel Style="{StaticResource OptionContainer}">
                         <TextBlock Style="{StaticResource OptionTitle}"
+                                   Text="Monitor Log Path" />
+
+                        <DockPanel Style="{StaticResource OptionContent}">
+                            <Button x:Name="BrowseMonitorLogPath"
+                                    DockPanel.Dock="Right"
+                                    Style="{StaticResource OptionRightButton}">
+                                <materialDesign:PackIcon Kind="FolderOutline" />
+                            </Button>
+
+                            <TextBox x:Name="MonitorLogPath"
+                                     ToolTip="Optional FASTBuild monitor log file. Leave empty for automatic detection." />
+                        </DockPanel>
+                    </StackPanel>
+
+                    <StackPanel Style="{StaticResource OptionContainer}">
+                        <TextBlock Style="{StaticResource OptionTitle}"
                                    Text="Start with Windows" />
 
                         <Grid Style="{StaticResource OptionContent}">
